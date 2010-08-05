@@ -103,10 +103,10 @@ gboolean
 ft_reader_read_function_graph (FtReader *reader, /* IN */
                                FtEvent  *event)  /* OUT */
 {
+	static GString *str = NULL;
 	FtReaderPrivate *priv;
 	GIOStatus status;
 	gboolean ret = FALSE;
-	GString *str;
 	gsize len;
 	gint pos;
 	gint i;
@@ -116,7 +116,9 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 	g_return_val_if_fail(reader->priv->channel != NULL, FALSE);
 
 	priv = reader->priv;
-	str = g_string_new(NULL);
+	if (!str) {
+		str = g_string_new(NULL);
+	}
 
   next:
 	memset(event, 0, sizeof(*event));
@@ -129,7 +131,7 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 		goto cleanup;
 	}
 	g_strchomp(str->str);
-	if (!strlen(str->str)) {
+	if (!(str->len = strlen(str->str))) {
 		goto next;
 	}
 
@@ -238,22 +240,24 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 	}
 
   type:
-	if (g_str_has_suffix(str->str, ";")) {
+  	switch (str->str[str->len - 1]) {
+  	case ';':
 		event->type = FT_EVENT_CALL;
 		goto name;
-	} else if (g_str_has_suffix(str->str, "}")) {
+	case '}':
 		event->type = FT_EVENT_CALL_EXIT;
 		ret = TRUE;
 		goto cleanup;
+	default:
+		g_warning("Invalid trailing character: (%c) %s", str->str[str->len - 1], str->str);
+		g_assert_not_reached();
 	}
-	g_debug("%s", str->str);
-	g_assert_not_reached();
 
   name:
   	for (; str->str[i]; i++) {
   		switch (str->str[i]) {
   		case '|':
-  			memcpy(event->call.name, &str->str[i + 1], str->len - i - 1);
+  			memcpy(event->call.name, &str->str[i + 2], str->len - i - 2);
   			goto scrub;
   		default:
   			break;
@@ -285,7 +289,10 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 	 */
 
   cleanup:
-  	g_string_free(str, TRUE);
+  	/*
+  	 * Leave string around for next line.
+  	 * g_string_free(str, TRUE);
+  	 */
   	return ret;
 }
 

@@ -111,6 +111,8 @@ sig_handler (gint sig)
 		g_print("\nSIGINT caught; disabling tracing.\n");
 		disable_tracer();
 		need_disable = FALSE;
+	} else {
+		exit(255);
 	}
 }
 
@@ -121,11 +123,18 @@ handle_call (FtEvent *begin, /* IN */
 	GTimeVal *dur;
 	GList *list = NULL;
 
+	static gint count = 0;
+
+	count++;
+	if ((count % 1000) == 0) {
+		g_print("call count=%d\n", count);
+	}
+
 	list = g_hash_table_lookup(calls, begin->call.name);
 	dur = g_slice_new0(GTimeVal);
 	*dur = end->call.duration;
 	list = g_list_prepend(list, dur);
-	g_hash_table_insert(calls, g_strdup(begin->call.name), list);
+	g_hash_table_insert(calls, begin->call.name, list);
 
 #if 0
 	g_print("[%05ld.%06ld] ==> %s();\n",
@@ -248,7 +257,7 @@ main (gint   argc,   /* IN */
 	for (i = 0; i < MAX_CPU; i++) {
 		stack[i] = g_queue_new();
 	}
-	calls = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	calls = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
 
 	/*
 	 * Create reader and load trace file.
@@ -260,7 +269,7 @@ main (gint   argc,   /* IN */
 		return EXIT_FAILURE;
 	}
 
-	g_print("Calculating overview ...\n");
+	g_print("Parsing trace output ...\n");
 
 	/*
 	 * Read events.
@@ -290,6 +299,9 @@ main (gint   argc,   /* IN */
 			return EXIT_FAILURE;
 		}
 	}
+
+	g_print("Parsed trace file ...\n");
+	g_print("Calculating overview ...\n");
 
 	calculate();
 
