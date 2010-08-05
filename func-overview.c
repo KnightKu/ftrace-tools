@@ -120,21 +120,19 @@ static void
 handle_call (FtEvent *begin, /* IN */
              FtEvent *end)   /* IN */
 {
-	GTimeVal *dur;
-	GList *list = NULL;
+	GArray *ar;
 
 	static gint count = 0;
-
 	count++;
 	if ((count % 1000) == 0) {
 		g_print("call count=%d\n", count);
 	}
 
-	list = g_hash_table_lookup(calls, begin->call.name);
-	dur = g_slice_new0(GTimeVal);
-	*dur = end->call.duration;
-	list = g_list_prepend(list, dur);
-	g_hash_table_insert(calls, begin->call.name, list);
+	if (!(ar = g_hash_table_lookup(calls, begin->call.name))) {
+		ar = g_array_new(FALSE, FALSE, sizeof(GTimeVal));
+		g_hash_table_insert(calls, begin->call.name, ar);
+	}
+	g_array_append_val(ar, end->call.duration);
 
 #if 0
 	g_print("[%05ld.%06ld] ==> %s();\n",
@@ -163,49 +161,44 @@ calculate (void)
 	GTimeVal *med;
 	GHashTableIter iter;
 	gchar *key;
-	GList *val;
-	GList *list;
+	GArray *val;
 	gfloat avg;
 	gfloat medf;
-	gint count;
+	gint i;
 
 	g_print("%40s | %14s | %14s | %14s | %5s\n",
 	         "Function", "Cumulative", "Mean", "Median", "Count");
 	g_print("====================================================================================================\n");
 	g_hash_table_iter_init(&iter, calls);
 	while (g_hash_table_iter_next(&iter, (gpointer *)&key, (gpointer *)&val)) {
-		count = 0;
 		cum.tv_sec = 0;
 		cum.tv_usec = 0;
-		for (list = val; list; list = list->next) {
-			dur = list->data;
+		for (i = 0; i < val->len; i++) {
+			dur = &g_array_index(val, GTimeVal, i);
 			cum.tv_sec += dur->tv_sec;
 			g_time_val_add(&cum, dur->tv_usec);
-			count++;
 		}
-		list = g_list_copy(val);
-		list = g_list_sort(list, (GCompareFunc)sort_time_val);
-		if (count == 1) {
-			med = list->data;
+		g_array_sort(val, (GCompareFunc)sort_time_val);
+		if (val->len == 1) {
+			med = &g_array_index(val, GTimeVal, 0);
 			medf = ((gfloat)med->tv_sec + (gfloat)(med->tv_usec / (gfloat)G_USEC_PER_SEC));
-		} else if ((count % 2) == 1) {
-			med = g_list_nth_data(list, count / 2);
+		} else if ((val->len % 2) == 1) {
+			med = &g_array_index(val, GTimeVal, val->len / 2);
 			medf = ((gfloat)med->tv_sec + (gfloat)(med->tv_usec / (gfloat)G_USEC_PER_SEC));
 		} else {
-			dur = g_list_nth_data(list, count / 2);
-			med = g_list_nth_data(list, (count / 2) - 1);
+			dur = &g_array_index(val, GTimeVal, val->len / 2);
+			med = &g_array_index(val, GTimeVal, (val->len / 2) - 1);
 			dur->tv_sec += med->tv_sec;
 			g_time_val_add(dur, med->tv_usec);
 			medf = ((gfloat)med->tv_sec + (gfloat)(med->tv_usec / (gfloat)G_USEC_PER_SEC)) / 2.;
 		}
-		g_list_free(list);
 		avg = ((gfloat)cum.tv_sec + (gfloat)(cum.tv_usec / (gfloat)G_USEC_PER_SEC))
-		    / (gfloat)count;
+		    / (gfloat)val->len;
 		g_print("%40s | %7ld.%06ld | %7ld.%06ld | %7ld.%06ld | %5d\n",
 		        key, cum.tv_sec, cum.tv_usec,
 		        (glong)avg, (glong)((avg - floor(avg)) * 1000000),
 		        (glong)medf, (glong)((medf - floor(medf)) * 1000000),
-		        count);
+		        val->len);
 	}
 }
 
