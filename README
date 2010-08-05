@@ -1,0 +1,27 @@
+Hi,
+
+  This is a repository where I will most likely keep little helpers to make
+working with ftrace easier.  I have no idea how much I will maintain this,
+but who knows.
+
+-- Christian
+
+
+func-overview
+=============
+
+Runs the function_graph ftrace tracer for you and then calculates the following
+when it is complete.
+
+  sudo ./func-overview
+
+              Function |     Cumulative |           Mean |         Median | Count
+  ===============================================================================
+              pollwake |      27.000269 |      27.000268 |      27.000268 |     1
+           skb_dequeue |       4.000629 |       2.000314 |       1.000141 |     2
+        copy_from_user |       5.002261 |       1.000452 |       1.000359 |     5
+
+You can also run it with an existing trace file like such:
+
+  ./func-overview /sys/kernel/debug/tracing/trace
+
