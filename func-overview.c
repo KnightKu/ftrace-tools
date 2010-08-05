@@ -260,6 +260,8 @@ main (gint   argc,   /* IN */
 		return EXIT_FAILURE;
 	}
 
+	g_print("Calculating overview ...\n");
+
 	/*
 	 * Read events.
 	 */

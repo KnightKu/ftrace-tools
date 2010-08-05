@@ -117,9 +117,9 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 
 	priv = reader->priv;
 	str = g_string_new(NULL);
-	memset(event, 0, sizeof(*event));
 
   next:
+	memset(event, 0, sizeof(*event));
 
   	/*
   	 * Read the next line from the file.
@@ -129,6 +129,9 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 		goto cleanup;
 	}
 	g_strchomp(str->str);
+	if (!strlen(str->str)) {
+		goto next;
+	}
 
 	/*
 	 * Skip comment lines.
@@ -143,7 +146,16 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 	pos = -1;
 	for (i = 0; str->str[i]; i++) {
 		switch (str->str[i]) {
+		case '-':
+			if (pos < 0) {
+				goto next;
+			}
+			break;
 		case ' ':
+			break;
+		case '<':
+			goto next;
+			break;
 		case '0':
 		case '1':
 		case '2':
@@ -218,7 +230,10 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 			}
 			continue;
 		default:
-			goto cleanup;
+			/*
+			 * Must be a line of switching process. Skip.
+			 */
+			goto next;
 		}
 	}
 
@@ -231,6 +246,7 @@ ft_reader_read_function_graph (FtReader *reader, /* IN */
 		ret = TRUE;
 		goto cleanup;
 	}
+	g_debug("%s", str->str);
 	g_assert_not_reached();
 
   name:
