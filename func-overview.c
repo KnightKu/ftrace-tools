@@ -130,7 +130,7 @@ handle_call (FtEvent *begin, /* IN */
 
 	if (!(ar = g_hash_table_lookup(calls, begin->call.name))) {
 		ar = g_array_new(FALSE, FALSE, sizeof(GTimeVal));
-		g_hash_table_insert(calls, begin->call.name, ar);
+		g_hash_table_insert(calls, g_strdup(begin->call.name), ar);
 	}
 	g_array_append_val(ar, end->call.duration);
 
@@ -250,7 +250,7 @@ main (gint   argc,   /* IN */
 	for (i = 0; i < MAX_CPU; i++) {
 		stack[i] = g_queue_new();
 	}
-	calls = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
+	calls = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 
 	/*
 	 * Create reader and load trace file.
